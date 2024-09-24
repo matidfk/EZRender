@@ -76,6 +76,7 @@ class EZRENDER_OT_set_resolution(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO_GROUPED'}
 
     def execute(self, context):
+        bpy.app.handlers.depsgraph_update_post.append(depsgraph_update_handler)
         table = {
                 "A2": [420, 594],
                 "A3": [297, 420],
@@ -197,18 +198,6 @@ class RENDER_OT_ez_render_post(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def get_is_active(self):
-    return self.type == "CAMERA" and self == bpy.context.scene.camera
-    
-def set_is_active(self, value):
-    if value == True:
-        bpy.context.scene.camera = self
-
-def get_is_inactive(self):
-    return not (self.type == "CAMERA" and self == bpy.context.scene.camera)
-
-def set_dummy(self, value):
-    return
 
 class EzRenderProgress(bpy.types.PropertyGroup):
     progress: bpy.props.IntProperty(default=0)
@@ -243,6 +232,21 @@ classes = (
     RENDER_OT_ez_render_post,
     EzRenderProgress,
 )
+
+def get_is_active(self):
+    return bpy.context.scene.camera == self.original
+    
+def set_is_active(self, value):
+    old = bpy.context.scene.camera
+    if value and self.original != old:
+        bpy.context.scene.camera = self.original
+        old.update_tag()
+
+def get_is_inactive(self):
+    return not bpy.context.scene.camera == self.original
+
+def set_dummy(self, value):
+    return
     
 def register():
     bpy.types.Object.is_active = bpy.props.BoolProperty(name="Is Active", get=get_is_active, set=set_is_active)
@@ -260,6 +264,7 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.Scene.ez_render_progress = bpy.props.PointerProperty(type=EzRenderProgress)
+
 
     panel.register()
     
